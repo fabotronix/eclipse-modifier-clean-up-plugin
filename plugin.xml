@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.jdt.ui.cleanUps">
+         <cleanUp id="org.loewner.visibilityCleanup.VisibilityModifierCleanUp"
+               class="org.loewner.visibilityCleanup.VisibilityModifierCleanUp">
+         </cleanUp>
+         <cleanUpConfigurationUI
+               class="org.loewner.visibilityCleanup.VisibilityModifierCleanUpConfigurationUI"
+               cleanUpKind="cleanUp"
+               name="Visibility Modifiers">
+         </cleanUpConfigurationUI>
+   </extension>
+
+</plugin>
