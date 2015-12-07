@@ -3,6 +3,7 @@ This is eclipse plugin, which provides the following clean up actions in java pr
 * Reduce constructor visibility to class visibility
 * Remove enum constructor modifiers
 * Remove static from enum declarations
+* Remove public modifiers from methods in public interfaces
 
 ## Installation
 

@@ -11,12 +11,12 @@ import org.eclipse.jdt.core.refactoring.CompilationUnitChange;
 import org.eclipse.jdt.ui.cleanup.CleanUpContext;
 import org.eclipse.jdt.ui.cleanup.ICleanUpFix;
 
-public class VisibilityCleanUpFix implements ICleanUpFix {
+public class VisibilityModifierCleanUpFix implements ICleanUpFix {
 
 	private final CleanUpContext _context;
 	private final Collection<ASTNode> _toRemove;
 
-	VisibilityCleanUpFix(CleanUpContext context, Collection<ASTNode> toRemove) {
+	VisibilityModifierCleanUpFix(CleanUpContext context, Collection<ASTNode> toRemove) {
 		_context = context;
 		_toRemove = toRemove;
 	}

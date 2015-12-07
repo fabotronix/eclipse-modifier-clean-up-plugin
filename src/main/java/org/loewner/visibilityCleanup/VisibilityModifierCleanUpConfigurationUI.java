@@ -31,6 +31,8 @@ public class VisibilityModifierCleanUpConfigurationUI implements ICleanUpConfigu
 				VisibilityModifierCleanUp.REMOVE_ENUM_CONSTRUCTOR_MODIFIERS_KEY);
 		createCheckbox(composite, "Remove static from enum declarations",
 				VisibilityModifierCleanUp.REMOVE_STATIC_FROM_ENUMS_KEY);
+		createCheckbox(composite, "Remove public modifiers from members in public interfaces",
+				VisibilityModifierCleanUp.REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY);
 		return composite;
 	}
 
@@ -56,7 +58,7 @@ public class VisibilityModifierCleanUpConfigurationUI implements ICleanUpConfigu
 
 	@Override
 	public int getCleanUpCount() {
-		return 3;
+		return 4;
 	}
 
 	@Override
@@ -69,6 +71,9 @@ public class VisibilityModifierCleanUpConfigurationUI implements ICleanUpConfigu
 			count++;
 		}
 		if (_options.isEnabled(VisibilityModifierCleanUp.REMOVE_STATIC_FROM_ENUMS_KEY)) {
+			count++;
+		}
+		if (_options.isEnabled(VisibilityModifierCleanUp.REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY)) {
 			count++;
 		}
 		return count;

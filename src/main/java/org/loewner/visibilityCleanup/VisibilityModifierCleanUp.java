@@ -10,6 +10,7 @@ import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -27,6 +28,7 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 	public static final String REDUCE_CONSTRUCTOR_VISIBILITY_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REDUCE_CONSTRUCTOR_VISIBILITY_KEY";
 	public static final String REMOVE_ENUM_CONSTRUCTOR_MODIFIERS_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REMOVE_ENUM_CONSTRUCTOR_MODIFIERS_KEY";
 	public static final String REMOVE_STATIC_FROM_ENUMS_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REMOVE_STATIC_FROM_ENUMS_KEY";
+	public static final String REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REMOVE_PUBLIC_FROM_METHODS_IN_PUBLIC_INTERFACE_KEY";
 	private CleanUpOptions _options;
 
 	@Override
@@ -34,7 +36,10 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 		final boolean reduceConstructorVisibility = _options.isEnabled(REDUCE_CONSTRUCTOR_VISIBILITY_KEY);
 		final boolean removeEnumConstructorModifiers = _options.isEnabled(REMOVE_ENUM_CONSTRUCTOR_MODIFIERS_KEY);
 		final boolean removeStaticFromEnumsModifiers = _options.isEnabled(REMOVE_STATIC_FROM_ENUMS_KEY);
-		if (!reduceConstructorVisibility && !removeEnumConstructorModifiers && !removeStaticFromEnumsModifiers) {
+		final boolean removePublicFromMembersInPublicInterfaces = _options
+				.isEnabled(REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY);
+		if (!reduceConstructorVisibility && !removeEnumConstructorModifiers && !removeStaticFromEnumsModifiers
+				&& !removePublicFromMembersInPublicInterfaces) {
 			return null;
 		}
 		final CompilationUnit cu = context.getAST();
@@ -44,22 +49,22 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 			@Override
 			public boolean visit(MethodDeclaration node) {
 				if (!node.isConstructor()) {
+					if (removePublicFromMembersInPublicInterfaces && node.getParent() instanceof TypeDeclaration) {
+						final TypeDeclaration classDecl = (TypeDeclaration) node.getParent();
+						if (classDecl.isInterface()) {
+							final Visibility classVisibility = getVisibility(classDecl);
+							if (classVisibility == Visibility.PUBLIC && (node.getModifiers() & Modifier.PUBLIC) != 0) {
+								removePublicModifier(node.modifiers());
+							}
+						}
+					}
 					return false;
 				}
 				if (reduceConstructorVisibility && node.getParent() instanceof TypeDeclaration) {
 					final TypeDeclaration classDecl = (TypeDeclaration) node.getParent();
 					final Visibility classVisibility = getVisibility(classDecl);
 					if (classVisibility != Visibility.PUBLIC && classVisibility != Visibility.PROTECTED) {
-						final List<?> modifiers = node.modifiers();
-						if (modifiers != null) {
-							for (final Object modifierNode : modifiers) {
-								if (modifierNode instanceof Modifier) {
-									if (((Modifier) modifierNode).isPublic()) {
-										toRemove.add((Modifier) modifierNode);
-									}
-								}
-							}
-						}
+						removePublicModifier(node.modifiers());
 					}
 				}
 				if (removeEnumConstructorModifiers && node.getParent() instanceof EnumDeclaration) {
@@ -78,6 +83,18 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 				return false;
 			}
 
+			private void removePublicModifier(final List<?> modifiers) {
+				if (modifiers != null) {
+					for (final Object modifierNode : modifiers) {
+						if (modifierNode instanceof Modifier) {
+							if (((Modifier) modifierNode).isPublic()) {
+								toRemove.add((Modifier) modifierNode);
+							}
+						}
+					}
+				}
+			}
+
 			@Override
 			public boolean visit(EnumDeclaration node) {
 				if (removeStaticFromEnumsModifiers) {
@@ -92,14 +109,32 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 						}
 					}
 				}
+				removePublicFromMemberDeclarationInInterface(node);
 				return true;
+			}
+
+			@Override
+			public boolean visit(TypeDeclaration node) {
+				removePublicFromMemberDeclarationInInterface(node);
+				return true;
+			}
+
+			private void removePublicFromMemberDeclarationInInterface(AbstractTypeDeclaration node) {
+				if (removePublicFromMembersInPublicInterfaces) {
+					if (node.getParent() instanceof TypeDeclaration) {
+						final TypeDeclaration typeDecl = (TypeDeclaration) node.getParent();
+						if (typeDecl.isInterface() && getVisibility(typeDecl) == Visibility.PUBLIC) {
+							removePublicModifier(node.modifiers());
+						}
+					}
+				}
 			}
 
 		});
 		if (toRemove.isEmpty()) {
 			return null;
 		}
-		return new VisibilityCleanUpFix(context, toRemove);
+		return new VisibilityModifierCleanUpFix(context, toRemove);
 	}
 
 	private Visibility getVisibility(TypeDeclaration classDecl) {
@@ -136,6 +171,9 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 		}
 		if (_options.isEnabled(REMOVE_STATIC_FROM_ENUMS_KEY)) {
 			steps.add("Removing static from enums");
+		}
+		if (_options.isEnabled(REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY)) {
+			steps.add("Removing public modifiers from members in public interfaces");
 		}
 		return steps.toArray(new String[steps.size()]);
 	}
