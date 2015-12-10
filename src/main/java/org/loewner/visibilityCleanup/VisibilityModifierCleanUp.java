@@ -29,6 +29,7 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 	public static final String REMOVE_ENUM_CONSTRUCTOR_MODIFIERS_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REMOVE_ENUM_CONSTRUCTOR_MODIFIERS_KEY";
 	public static final String REMOVE_STATIC_FROM_ENUMS_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REMOVE_STATIC_FROM_ENUMS_KEY";
 	public static final String REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REMOVE_PUBLIC_FROM_METHODS_IN_PUBLIC_INTERFACE_KEY";
+	public static final String REMOVE_STATIC_FROM_DECL_IN_INTERFACES_KEY = "org.loewner.checkstyle_cleanup.CheckstyleCleanup_REMOVE_STATIC_FROM_DECL_IN_INTERFACES_KEY";
 	private CleanUpOptions _options;
 
 	@Override
@@ -38,8 +39,9 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 		final boolean removeStaticFromEnumsModifiers = _options.isEnabled(REMOVE_STATIC_FROM_ENUMS_KEY);
 		final boolean removePublicFromMembersInPublicInterfaces = _options
 				.isEnabled(REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY);
+		final boolean removeStaticFromDeclInInterfaces = _options.isEnabled(REMOVE_STATIC_FROM_DECL_IN_INTERFACES_KEY);
 		if (!reduceConstructorVisibility && !removeEnumConstructorModifiers && !removeStaticFromEnumsModifiers
-				&& !removePublicFromMembersInPublicInterfaces) {
+				&& !removePublicFromMembersInPublicInterfaces && !removeStaticFromDeclInInterfaces) {
 			return null;
 		}
 		final CompilationUnit cu = context.getAST();
@@ -49,7 +51,7 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 			@Override
 			public boolean visit(MethodDeclaration node) {
 				if (!node.isConstructor()) {
-					if (removePublicFromMembersInPublicInterfaces && node.getParent() instanceof TypeDeclaration) {
+					if ((removePublicFromMembersInPublicInterfaces) && node.getParent() instanceof TypeDeclaration) {
 						final TypeDeclaration classDecl = (TypeDeclaration) node.getParent();
 						if (classDecl.isInterface()) {
 							final Visibility classVisibility = getVisibility(classDecl);
@@ -95,19 +97,22 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 				}
 			}
 
-			@Override
-			public boolean visit(EnumDeclaration node) {
-				if (removeStaticFromEnumsModifiers) {
-					final List<?> modifiers = node.modifiers();
-					if (modifiers != null) {
-						for (final Object modifierNode : modifiers) {
-							if (modifierNode instanceof Modifier) {
-								if (((Modifier) modifierNode).isStatic()) {
-									toRemove.add((Modifier) modifierNode);
-								}
+			private void removeStaticModifier(final List<?> modifiers) {
+				if (modifiers != null) {
+					for (final Object modifierNode : modifiers) {
+						if (modifierNode instanceof Modifier) {
+							if (((Modifier) modifierNode).isStatic()) {
+								toRemove.add((Modifier) modifierNode);
 							}
 						}
 					}
+				}
+			}
+
+			@Override
+			public boolean visit(EnumDeclaration node) {
+				if (removeStaticFromEnumsModifiers) {
+					removeStaticModifier(node.modifiers());
 				}
 				removePublicFromMemberDeclarationInInterface(node);
 				return true;
@@ -115,6 +120,14 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 
 			@Override
 			public boolean visit(TypeDeclaration node) {
+				if (removeStaticFromDeclInInterfaces) {
+					if (node.getParent() instanceof TypeDeclaration) {
+						final TypeDeclaration decl = (TypeDeclaration) node.getParent();
+						if (decl.isInterface()) {
+							removeStaticModifier(node.modifiers());
+						}
+					}
+				}
 				removePublicFromMemberDeclarationInInterface(node);
 				return true;
 			}
@@ -174,6 +187,9 @@ public class VisibilityModifierCleanUp implements ICleanUp {
 		}
 		if (_options.isEnabled(REMOVE_PUBLIC_FROM_MEMBERS_IN_PUBLIC_INTERFACE_KEY)) {
 			steps.add("Removing public modifiers from members in public interfaces");
+		}
+		if (_options.isEnabled(REMOVE_STATIC_FROM_DECL_IN_INTERFACES_KEY)) {
+			steps.add("Removing static from declarations in interfaces");
 		}
 		return steps.toArray(new String[steps.size()]);
 	}

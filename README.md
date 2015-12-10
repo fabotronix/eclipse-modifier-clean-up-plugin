@@ -4,6 +4,7 @@ This is eclipse plugin, which provides the following clean up actions in java pr
 * Remove enum constructor modifiers
 * Remove static from enum declarations
 * Remove public modifiers from methods in public interfaces
+* Remove static from declarations inside interfaces
 
 ## Installation
 
